@@ -53,10 +53,6 @@ class WindowManager {
                 Rectangle()
                     .foregroundColor(.red.opacity(0.15)))
     }
-    
-    func shake() {
-        // let _ = (WindowManager.shared.closableWindowExample as AnyObject).perform(Selector(("_shake")));
-    }
 }
 
 // MARK: - Custom Window
