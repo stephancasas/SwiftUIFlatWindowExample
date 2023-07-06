@@ -5,17 +5,16 @@
 //  Created by Stephan Casas on 7/2/23.
 //
 
-import SwiftUI
+import SwiftUI;
 
 @main
 struct SwiftUIFlatWindowExampleApp: App {
     init() {
-        WindowManager.shared.closableWindowExample.orderFront(nil);
-        WindowManager.shared.closableWindowExample.center();
-        
-        WindowManager.shared.shapeWindowExample.orderFront(nil);
+        WindowManager.shared.shapeWindowExample.makeKeyAndOrderFront(nil);
         WindowManager.shared.shapeWindowExample.center();
     }
+    
+    
     
     var body: some Scene {
         EmptyScene()
@@ -39,15 +38,15 @@ class WindowManager {
     
     static let shared = WindowManager();
     
-    var closableWindowExample = FlatWindow(CGRectMake(0, 0, 300, 300), viewOnly: false) {
-        VStack(content: {
-            Button("Hello, world!", action: {
-                print("Hello, world!");
-            })
-        })
-    }
+    /// For some reason, NSWindow will not draw an untitled window
+    /// unless there's already one other app-owned window instance.
+    ///
+    /// This empty window fills that purpose — even though it is
+    /// also untitled itself.
+    ///
+    var emptyWindow = FlatWindow((0, 0, 1, 1)) { EmptyView() }
     
-    var shapeWindowExample = FlatWindow(CGRectMake(0, 0, 400, 400)) {
+    var shapeWindowExample = FlatWindow((0, 0, 400, 400)) {
         Rectangle()
             .strokeBorder(.red, lineWidth: 3)
             .background(
@@ -55,22 +54,34 @@ class WindowManager {
                     .foregroundColor(.red.opacity(0.15)))
     }
     
+    func shake() {
+        // let _ = (WindowManager.shared.closableWindowExample as AnyObject).perform(Selector(("_shake")));
+    }
 }
 
 // MARK: - Custom Window
 
 class FlatWindow: NSPanel {
     
+    convenience init(
+        _ contentRect: (CGFloat, CGFloat, CGFloat, CGFloat),
+        @ViewBuilder content: @escaping () -> some View
+    ) {
+        self.init(CGRectMake(
+            contentRect.0,
+            contentRect.1,
+            contentRect.2,
+            contentRect.3),
+            content: content);
+    }
+    
     init(
         _ contentRect: NSRect,
-        viewOnly: Bool = true,
         styleMask style: NSWindow.StyleMask = [
             .borderless,
-            .titled, // Window will not draw without this.
             .fullSizeContentView,
             .nonactivatingPanel,
             .resizable,
-            .closable
         ],
         backing backingStoreType: NSWindow.BackingStoreType = .buffered,
         defer flag: Bool = false,
@@ -95,62 +106,16 @@ class FlatWindow: NSPanel {
         self.isReleasedWhenClosed = true;
         
         self.isOpaque = false;
+        self.hasShadow = false;
         self.backgroundColor = .clear;
+        
+        self.titleVisibility = .hidden;
         self.titlebarAppearsTransparent = true;
         
-        if viewOnly {
-            self.titleVisibility = .hidden;
-            
-            self.hasShadow = false;
-            
-            /// These are only required if the `resizable` or `closable`
-            /// flags are set.
-            ///
-            self.standardWindowButton(.zoomButton)?.isHidden = true;
-            self.standardWindowButton(.closeButton)?.isHidden = true;
-            self.standardWindowButton(.miniaturizeButton)?.isHidden = true;
-            
-            self.contentView = NSHostingView(
-                rootView: AnyView(content()).ignoresSafeArea(.all)
-            );
-            
-            return;
-        }
-        
-        let titleOffset: CGFloat = (((self as AnyObject).value(
-            forKey: "titlebarHeight"
-        ) as? CGFloat) ?? kDefaultTitlebarHeight) / 2;
-        
         self.contentView = NSHostingView(
-            rootView: ZStack(content: {
-                
-                /// Draw window background using rectangle.
-                ///
-                /// The default window background provided
-                /// by `NSThemeFrame` will always draw round
-                /// corners on the upper edge, and it won't
-                /// match the square lower corners.
-                ///
-                Rectangle()
-                    .foregroundStyle(.bar)
-                
-                /// Offset the content view with consideration
-                /// to the titlebar height and/or traffic
-                /// signals.
-                ///
-                AnyView(content())
-                    .offset(y: titleOffset)
-                
-            })
-            .ignoresSafeArea(.all)
-            .frame(
-                maxWidth: .infinity,
-                maxHeight: .infinity)
+            rootView: AnyView(content()).ignoresSafeArea(.all)
         );
-        
     }
-    
-    let kDefaultTitlebarHeight: CGFloat = 28;
     
     override var canBecomeKey: Bool { true }
     
